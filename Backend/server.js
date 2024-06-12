@@ -41,24 +41,6 @@ app.use(function (req, res, next) {
   next()
 })
 
-// app.use((req, res, next) => {
-//   res.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
-//   res.header(
-//     "Access-Control-Allow-Headers",
-//     "Origin, X-Requested-With, Content-Type, Accept, access_key"
-//   );
-//   next();
-// });
-// console.log('2');
-
-// var corsOptions = {
-//   origin: 'https://auto.steemdb.online',
-//   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204,
-//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-//   credentials: true,
-//   preflightContinue: false,
-// }
-// app.use(cors(corsOptions))
 
 app.use(helmet())
 
@@ -85,7 +67,7 @@ app.use('/api/public/curation-trail', publicCurationTrail)
 // All settings APIs
 app.use('/api/v1.1/settings/curation-trail', curationTrailSettings)
 
-const port = process.env.PORT || 3001
+const port = process.env.PORT || 3005
 const host = process.env.HOST || '127.0.0.1'
 app.listen(port, host, () => {
   console.log(`Application started on ${host}:${port}`)
