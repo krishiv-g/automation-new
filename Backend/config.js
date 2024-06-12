@@ -1,9 +1,9 @@
 const config = {
   db: {
-    host: '127.0.0.1',
-    user: 'username',
-    pw: 'password',
-    name: 'databasename',
+    host: '10.10.100.17',
+    user: 'pranish',
+    pw: 'Pranish@1234',
+    name: 'steem_automation',
     charset: 'utf8mb4'
   },
   nodeURL: 'https://api.steemit.com',
