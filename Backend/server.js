@@ -1,107 +1,92 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const cookieParser = require('cookie-parser');
-const hpp = require('hpp');
-const app = express();
-const crypto = require('crypto');
-const con = require('./helpers/mysql');
-const scAuth = require('./helpers/steemconnect_call');
-const selectExists = require('./helpers/select_exists');
+const express = require('express')
+// const cors = require('cors')
+const bodyParser = require('body-parser')
+const cookieParser = require('cookie-parser')
+const hpp = require('hpp')
+const app = express()
+const helmet = require('helmet')
+const isAuth = require('./middlewares/is_auth')
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(hpp());
+const curationTrail = require('./api/v1/dashboard/curation_trail')
+const fanbase = require('./api/v1/dashboard/fanbase')
+const schedulePost = require('./api/v1/dashboard/schedule_post')
+const commentUpvote = require('./api/v1/dashboard/comment_upvote')
+const claimReward = require('./api/v1/dashboard/claim_reward')
+const loginMethod = require('./api/v1/login')
+const logoutMethod = require('./api/v1/logout')
+const dashboardFront = require('./api/v1.1/dashboard')
+const curationTrailFront = require('./api/v1.1/curation-trail')
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Credentials', true);
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, access_key');
-  next();
-});
+const publicCurationTrail = require('./api/public/curation-trail')
 
-// Login endpoint
-app.post('/api/v1/login', async (req, res) => {
-  const accessToken = req.body.access_token;
+// Processing backend processes (private api)
+const v2Function = require('./api/v2/function')
 
-  if (accessToken) {
-    const result = await scAuth(accessToken);
+// Settings imports
+const curationTrailSettings = require('./api/v1.1/settings/curation-trail')
 
-    if (result && result.user) {
-      const username = result.user;
-      const accessKey = crypto.randomBytes(36).toString('hex');
+// support json encoded bodies and encoded bodies
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: true }))
+app.use(cookieParser())
 
-      const exists = await con.query(
-        'SELECT EXISTS(SELECT `user` FROM `users` WHERE `user`=?)',
-        [username]
-      );
+// console.log('1');
+app.use(function (req, res, next) {
+  /** TODO: add ENV var for development mode */
+  // res.header('Access-Control-Allow-Origin', 'https://steemdb.online')
+  const dev = 1
+  res.header('Access-Control-Allow-Origin', 'http://localhost:4200')
+  res.header('Access-Control-Allow-Credentials', true)
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, access_key')
+  next()
+})
 
-      if (selectExists(exists)) {
-        await con.query(
-          'UPDATE `users` SET `access_key`=? WHERE `user`=?',
-          [accessKey, username]
-        );
-      } else {
-        await con.query(
-          'INSERT INTO `users`(`user`, `access_key`) VALUES (?, ?)',
-          [username, accessKey]
-        );
-      }
+// app.use((req, res, next) => {
+//   res.setHeader("Access-Control-Allow-Origin", "http://localhost:4200");
+//   res.header(
+//     "Access-Control-Allow-Headers",
+//     "Origin, X-Requested-With, Content-Type, Accept, access_key"
+//   );
+//   next();
+// });
+// console.log('2');
 
-      res.json({
-        id: 1,
-        result: 'success',
-        access_key: accessKey,
-        username
-      });
-    } else {
-      res.json({
-        id: 0,
-        error: 'Wrong access_token provided'
-      });
-    }
-  } else if (req.cookies.access_key && req.cookies.username) {
-    const accessKey = req.cookies.access_key;
-    const username = req.cookies.username;
+// var corsOptions = {
+//   origin: 'https://auto.steemdb.online',
+//   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204,
+//   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+//   credentials: true,
+//   preflightContinue: false,
+// }
+// app.use(cors(corsOptions))
 
-    const result = await con.query(
-      'SELECT EXISTS(SELECT `user` FROM `users` WHERE `user`=? AND `access_key`=?)',
-      [username, accessKey]
-    );
+app.use(helmet())
 
-    if (selectExists(result)) {
-      res.json({
-        id: 1,
-        result: 'success'
-      });
-    } else {
-      res.json({
-        id: 0,
-        error: 'Wrong access_key provided'
-      });
-    }
-  } else {
-    res.json({
-      id: 0,
-      error: 'required params missed'
-    });
-  }
-});
+// more info: www.npmjs.com/package/hpp
+app.use(hpp())
+//hello
 
-// Logout endpoint
-app.post('/api/v1/logout', (req, res) => {
-  res.clearCookie('access_key');
-  res.clearCookie('username');
-  res.json({
-    id: 1,
-    result: 'success',
-    message: 'Logged out successfully'
-  });
-});
+app.use('/api/v1/dashboard/curation-trail', curationTrail)
+app.use('/api/v1/dashboard/fanbase', fanbase)
+app.use('/api/v1/dashboard/schedule_post', schedulePost)
+app.use('/api/v1/dashboard/comment_upvote', commentUpvote)
+app.use('/api/v1/dashboard/claim_reward', claimReward)
+app.use('/api/v1/login', loginMethod)
+app.use('/api/v1/logout', logoutMethod)
 
-const port = process.env.PORT || 3001;
-const host = process.env.HOST || '127.0.0.1';
+app.use('/api/v1.1/dashboard', dashboardFront)
+app.use('/api/v1.1/curation-trail', isAuth)
+app.use('/api/v1.1/curation-trail', curationTrailFront)
 
+app.use('/api/v2/function', v2Function)
+
+app.use('/api/public/curation-trail', publicCurationTrail)
+
+// All settings APIs
+app.use('/api/v1.1/settings/curation-trail', curationTrailSettings)
+
+const port = process.env.PORT || 3001
+const host = process.env.HOST || '127.0.0.1'
 app.listen(port, host, () => {
-  console.log(`Application started on ${host}:${port}`);
-});
+  console.log(`Application started on ${host}:${port}`)
+})
